@@ -31,9 +31,14 @@ export async function fetchValuationFromSuperCarValuation(
     valuation.providerName = PROVIDER_NAME;
 
     return valuation;
-  } catch (error: any) {
-    responseCode = error?.response?.status ?? 500;
-    errorMessage = error?.message ?? 'Unknown error';
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      responseCode = error.response?.status ?? 500;
+      errorMessage = error.message;
+    } else {
+      responseCode = 500;
+      errorMessage = 'Unknown error';
+    }
     throw error;
   } finally {
     const duration = Date.now() - start;

@@ -36,7 +36,7 @@ export async function createValuation(createValuationDeps: CreateValuationDeps, 
         if (!useFallback) {
             // Try Premium as fallback
             try {
-                valuation = await fetchValuationFromPremiumCarValuation(vrm);
+                valuation = await fetchValuationFromPremiumCarValuation(createValuationDeps.providerLogsRepository, vrm);
                 failoverManager.logSuccess();
             } catch (finalErr) {
                 failoverManager.logFailure();
