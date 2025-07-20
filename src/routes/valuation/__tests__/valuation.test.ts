@@ -1,11 +1,12 @@
 import { vi } from 'vitest';
-vi.mock('@app/valuation-providers/super-car/super-car-valuation', () => ({
-  fetchValuationFromSuperCarValuation: vi.fn(() => ({
-    vrm: 'ABC123',
-    lowestValue: 5000,
-    highestValue: 8000,
-  })),
+vi.mock('@app/valuation-providers', () => ({
+  fetchValuationFromSuperCarValuation: vi.fn(),
+  fetchValuationFromPremiumCarValuation: vi.fn()
 }));
+import {
+  fetchValuationFromSuperCarValuation,
+  fetchValuationFromPremiumCarValuation
+} from '@app/valuation-providers';
 
 import { fastify } from '~root/test/fastify';
 import { VehicleValuationRequest } from '../types/vehicle-valuation-request';
@@ -127,6 +128,11 @@ describe('ValuationController (e2e)', () => {
     });
 
     it('should return 200 with valid request', async () => {
+      (fetchValuationFromSuperCarValuation as any).mockResolvedValue({
+        vrm: 'ABC123',
+        lowestValue: 5000,
+        highestValue: 8000,
+      });
       const requestBody: VehicleValuationRequest = {
         mileage: 10000,
       };
@@ -137,7 +143,27 @@ describe('ValuationController (e2e)', () => {
         method: 'PUT',
       });
 
+      
       expect(res.statusCode).toStrictEqual(200);
+    });
+    it('should return 503 if both providers fail', async () => {
+      (fetchValuationFromSuperCarValuation as any).mockRejectedValue(new Error('fail 1'));
+      (fetchValuationFromPremiumCarValuation as any).mockRejectedValue(new Error('fail 2'));
+
+      const requestBody: VehicleValuationRequest = {
+        mileage: 10000,
+      };
+
+      const res = await fastify.inject({
+        url: '/valuations/FAIL123',
+        method: 'PUT',
+        body: requestBody,
+      });
+
+      expect(res.statusCode).toStrictEqual(503);
+      expect(res.json()).toMatchObject({
+        message: 'Service Unavailable: Unable to fetch valuation from both providers',
+      });
     });
   });
 });

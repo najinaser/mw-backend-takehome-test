@@ -67,9 +67,14 @@ export function valuationRoutes(fastify: FastifyInstance) {
       };
       const valuation = await createValuation(deps, vrm, mileage);
       return reply.code(200).send(valuation);
-    } catch (err) {
-      request.log.error(err);
-      return reply.code(503).send({ message: 'Valuation service failed' });
+      
+    } catch (err: any) {
+      // Known 503 
+      if (err?.statusCode === 503) {
+        return reply.code(503).send({ message: err.message || 'Some error happened' });
+      }
+      // Unexpected/internal error
+      return reply.code(500).send({ message: 'Internal server error' });
     }
 
   });

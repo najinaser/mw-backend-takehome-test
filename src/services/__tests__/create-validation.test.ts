@@ -4,6 +4,7 @@ import { VehicleValuation } from '@app/models/vehicle-valuation';
 import { ProviderLogs } from '@app/models/provider-logs';
 import { FastifyBaseLogger } from 'fastify';
 import { Repository } from 'typeorm';
+import { failoverManager } from '../failover-manager';
 
 vi.mock('@app/valuation-providers', () => ({
   fetchValuationFromSuperCarValuation: vi.fn(),
@@ -30,6 +31,8 @@ describe('createValuation', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+
+    failoverManager.reset();
 
     valuationRepo = {
       findOneBy: vi.fn().mockResolvedValue(null),
@@ -106,6 +109,29 @@ describe('createValuation', () => {
     expect(result.providerName).toBe('PremiumCar');
   });
 
+  it('uses PremiumCar by default after SuperCar fails enough times (failover mode)', async () => {
+    // Simulate repeated failures to exceed 50% threshold
+    for (let i = 0; i < 60; i++) failoverManager.logFailure();
+    for (let i = 0; i < 40; i++) failoverManager.logSuccess();
+
+    const fallbackValuation = { ...fakeValuation, providerName: 'PremiumCar' };
+    (fetchValuationFromPremiumCarValuation as any).mockResolvedValue(fallbackValuation);
+
+    const result = await createValuation(
+      {
+        valuationRepository: valuationRepo as any,
+        providerLogsRepository: providerLogsRepo as any,
+        logger,
+      },
+      'FAILOVER123',
+      10000
+    );
+
+    expect(fetchValuationFromSuperCarValuation).not.toHaveBeenCalled();
+    expect(fetchValuationFromPremiumCarValuation).toHaveBeenCalled();
+    expect(result.providerName).toBe('PremiumCar');
+  });
+
   it('throws if both providers fail', async () => {
     (fetchValuationFromSuperCarValuation as any).mockRejectedValue(new Error('fail 1'));
     (fetchValuationFromPremiumCarValuation as any).mockRejectedValue(new Error('fail 2'));
@@ -120,6 +146,9 @@ describe('createValuation', () => {
         'FAIL999',
         10000
       )
-    ).rejects.toThrow('Service Unavailable: Unable to fetch valuation from both providers');
+    ).rejects.toMatchObject({
+      statusCode: 503,
+      message: 'Service Unavailable: Unable to fetch valuation from both providers'
+    });
   });
 });

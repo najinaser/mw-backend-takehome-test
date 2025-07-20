@@ -1,16 +1,7 @@
-import { Repository } from 'typeorm';
 import { VehicleValuation } from '@app/models/vehicle-valuation';
-import { ProviderLogs } from '@app/models/provider-logs';
 import { fetchValuationFromPremiumCarValuation, fetchValuationFromSuperCarValuation } from '@app/valuation-providers';
 import { failoverManager } from './failover-manager';
-import { FastifyBaseLogger } from "fastify";
-
-interface CreateValuationDeps {
-  valuationRepository: Repository<VehicleValuation>;
-  providerLogsRepository: Repository<ProviderLogs>;
-  logger: FastifyBaseLogger;
-}
-
+import { CreateValuationDeps } from "./types/create-aluation-deps";
 
 export async function createValuation(createValuationDeps: CreateValuationDeps, vrm: string, mileage: number): Promise<VehicleValuation> {
 
@@ -22,24 +13,32 @@ export async function createValuation(createValuationDeps: CreateValuationDeps, 
 
     let valuation: VehicleValuation;
 
+    // Provider Failover Logic:
+    // 1. Use SuperCar by default.
+    // 2. Fallback to PremiumCar if SuperCar fails.
+    // 3. If SuperCar's failure rate > 50%, switch to PremiumCar (failover mode).
+    //    - Failover lasts for a cooldown period.
+    // 4. After cooldown, reset and retry SuperCar.
+    // 5. If both fail, return 503 Service Unavailable.
     const useFallback = failoverManager.shouldUseFallback();
 
     try {
-        valuation = useFallback
-        ? await fetchValuationFromPremiumCarValuation(createValuationDeps.providerLogsRepository, vrm)
-        : await fetchValuationFromSuperCarValuation(createValuationDeps.providerLogsRepository, vrm, mileage);
-
-        failoverManager.logSuccess();
+        if (useFallback) {
+            valuation = await fetchValuationFromPremiumCarValuation(createValuationDeps.providerLogsRepository, vrm)
+        } else {
+            valuation = await fetchValuationFromSuperCarValuation(createValuationDeps.providerLogsRepository, vrm, mileage);
+            // Only log success if SuperCar succeeds
+            failoverManager.logSuccess(); 
+        }
     } catch (err) {
-        failoverManager.logFailure();
-
         if (!useFallback) {
+            // Log failure for SuperCar
+            failoverManager.logFailure();
+
             // Try Premium as fallback
             try {
                 valuation = await fetchValuationFromPremiumCarValuation(createValuationDeps.providerLogsRepository, vrm);
-                failoverManager.logSuccess();
             } catch (finalErr) {
-                failoverManager.logFailure();
                 // 503 Service Unavailable if both fail
                 throw {
                     statusCode: 503,
@@ -47,6 +46,7 @@ export async function createValuation(createValuationDeps: CreateValuationDeps, 
                 };
             }
         } else {
+            // We’re in failover mode — PremiumCar failed, no retry
             throw err;
         }         
     }
