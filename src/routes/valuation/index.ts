@@ -1,7 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { VehicleValuationRequest } from './types/vehicle-valuation-request';
-import { fetchValuationFromSuperCarValuation } from '@app/valuation-providers/super-car/super-car-valuation';
 import { VehicleValuation } from '@app/models/vehicle-valuation';
+import { createValuation } from '@app/services/valuation-service';
 
 export function valuationRoutes(fastify: FastifyInstance) {
   fastify.get<{
@@ -57,17 +57,13 @@ export function valuationRoutes(fastify: FastifyInstance) {
         });
     }
 
-    const valuation = await fetchValuationFromSuperCarValuation(vrm, mileage);
+    try {
+      const valuation = await createValuation(valuationRepository, fastify.log, vrm, mileage);
+      return reply.code(200).send(valuation);
+    } catch (err) {
+      request.log.error(err);
+      return reply.code(503).send({ message: 'Valuation service failed' });
+    }
 
-    // Save to DB.
-    await valuationRepository.insert(valuation).catch((err) => {
-      if (err.code !== 'SQLITE_CONSTRAINT') {
-        throw err;
-      }
-    });
-
-    fastify.log.info('Valuation created: ', valuation);
-
-    return valuation;
   });
 }
