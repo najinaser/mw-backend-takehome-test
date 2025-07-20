@@ -1,5 +1,5 @@
 import { vi } from 'vitest';
-vi.mock('@app/super-car/super-car-valuation', () => ({
+vi.mock('@app/valuation-providers/super-car/super-car-valuation', () => ({
   fetchValuationFromSuperCarValuation: vi.fn(() => ({
     vrm: 'ABC123',
     lowestValue: 5000,

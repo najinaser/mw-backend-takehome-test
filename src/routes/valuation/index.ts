@@ -1,6 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import { VehicleValuationRequest } from './types/vehicle-valuation-request';
-import { fetchValuationFromSuperCarValuation } from '@app/super-car/super-car-valuation';
+import { fetchValuationFromSuperCarValuation } from '@app/valuation-providers/super-car/super-car-valuation';
 import { VehicleValuation } from '@app/models/vehicle-valuation';
 
 export function valuationRoutes(fastify: FastifyInstance) {

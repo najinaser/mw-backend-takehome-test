@@ -15,6 +15,7 @@
   "dependencies": {
     "axios": "1.6.8",
     "dotenv": "16.4.5",
+    "fast-xml-parser": "^5.2.5",
     "fastify": "4.26.2",
     "pino": "9.0.0",
     "pino-pretty": "11.0.0",

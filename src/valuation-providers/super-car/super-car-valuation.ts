@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-import { VehicleValuation } from '../models/vehicle-valuation';
+import { VehicleValuation } from '../../models/vehicle-valuation';
 import { SuperCarValuationResponse } from './types/super-car-valuation-response';
 
 export async function fetchValuationFromSuperCarValuation(
