@@ -41,5 +41,7 @@ describe('fetchValuationFromPremiumCarValuation', () => {
     expect(result.vrm).toBe('AA69BCD');
     expect(result.lowestValue).toBe(11500);
     expect(result.highestValue).toBe(12750);
+    expect(result.highestValue).toBe(12750);
+    expect(result.providerName).toBe("PremiumCar");
   });
 });

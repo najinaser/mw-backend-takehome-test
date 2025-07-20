@@ -1,7 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { VehicleValuationRequest } from './types/vehicle-valuation-request';
 import { VehicleValuation } from '@app/models/vehicle-valuation';
-import { createValuation } from '@app/services/valuation-service';
+import { createValuation } from '@app/services/create-valuation';
 
 export function valuationRoutes(fastify: FastifyInstance) {
   fastify.get<{

@@ -3,6 +3,7 @@ import { XMLParser } from 'fast-xml-parser';
 import { VehicleValuation } from '@app/models/vehicle-valuation';
 import { PremiumCarValuationXmlResponse } from "./types/premium-car-aluation-response";
 
+const PROVIDER_NAME = 'PremiumCar';
 
 export async function fetchValuationFromPremiumCarValuation(vrm: string): Promise<VehicleValuation> {
     const premiumCarClient = axios.create({
@@ -25,6 +26,7 @@ export async function fetchValuationFromPremiumCarValuation(vrm: string): Promis
   valuation.vrm = vrm;
   valuation.lowestValue = root.ValuationPrivateSaleMinimum ?? root.ValuationDealershipMinimum;
   valuation.highestValue = root.ValuationPrivateSaleMaximum ?? root.ValuationDealershipMaximum;
+  valuation.providerName = PROVIDER_NAME;
 
   return valuation;
 }

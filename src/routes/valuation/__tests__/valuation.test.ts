@@ -63,6 +63,7 @@ describe('ValuationController (e2e)', () => {
       expect(res.json()).toEqual({
         vrm: 'ABC123',
         lowestValue: 5000,
+        providerName: null,
         highestValue: 8000,
       });
     });

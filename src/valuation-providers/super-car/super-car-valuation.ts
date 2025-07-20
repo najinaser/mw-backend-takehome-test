@@ -3,6 +3,8 @@ import axios from 'axios';
 import { VehicleValuation } from '../../models/vehicle-valuation';
 import { SuperCarValuationResponse } from './types/super-car-valuation-response';
 
+const PROVIDER_NAME = 'SuperCar';
+
 export async function fetchValuationFromSuperCarValuation(
   vrm: string,
   mileage: number,
@@ -18,6 +20,7 @@ export async function fetchValuationFromSuperCarValuation(
   valuation.vrm = vrm;
   valuation.lowestValue = response.data.valuation.lowerValue;
   valuation.highestValue = response.data.valuation.upperValue;
+  valuation.providerName = PROVIDER_NAME;
 
   return valuation;
 }

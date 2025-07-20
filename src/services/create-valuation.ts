@@ -8,7 +8,9 @@ export async function createValuation(valuationRepository: Repository<VehicleVal
 
     // If already exists, return it
     const existing = await valuationRepository.findOneBy({ vrm });
-    if (existing) return existing;
+    if (existing) {
+        return existing
+    };
 
     let valuation: VehicleValuation;
 
@@ -30,11 +32,15 @@ export async function createValuation(valuationRepository: Repository<VehicleVal
                 failoverManager.logSuccess();
             } catch (finalErr) {
                 failoverManager.logFailure();
-                throw finalErr;
+                // 503 Service Unavailable if both fail
+                throw {
+                    statusCode: 503,
+                    message: 'Service Unavailable: Unable to fetch valuation from both providers'
+                };
             }
         } else {
             throw err;
-        }
+        }         
     }
 
     await valuationRepository.insert(valuation).catch((err) => {
