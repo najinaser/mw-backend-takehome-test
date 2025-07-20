@@ -1,13 +1,21 @@
 import { Repository } from 'typeorm';
 import { VehicleValuation } from '@app/models/vehicle-valuation';
+import { ProviderLogs } from '@app/models/provider-logs';
 import { fetchValuationFromPremiumCarValuation, fetchValuationFromSuperCarValuation } from '@app/valuation-providers';
 import { failoverManager } from './failover-manager';
 import { FastifyBaseLogger } from "fastify";
 
-export async function createValuation(valuationRepository: Repository<VehicleValuation>, logger: FastifyBaseLogger, vrm: string, mileage: number): Promise<VehicleValuation> {
+interface CreateValuationDeps {
+  valuationRepository: Repository<VehicleValuation>;
+  providerLogsRepository: Repository<ProviderLogs>;
+  logger: FastifyBaseLogger;
+}
+
+
+export async function createValuation(createValuationDeps: CreateValuationDeps, vrm: string, mileage: number): Promise<VehicleValuation> {
 
     // If already exists, return it
-    const existing = await valuationRepository.findOneBy({ vrm });
+    const existing = await createValuationDeps.valuationRepository.findOneBy({ vrm });
     if (existing) {
         return existing
     };
@@ -18,8 +26,8 @@ export async function createValuation(valuationRepository: Repository<VehicleVal
 
     try {
         valuation = useFallback
-        ? await fetchValuationFromPremiumCarValuation(vrm)
-        : await fetchValuationFromSuperCarValuation(vrm, mileage);
+        ? await fetchValuationFromPremiumCarValuation(createValuationDeps.providerLogsRepository, vrm)
+        : await fetchValuationFromSuperCarValuation(createValuationDeps.providerLogsRepository, vrm, mileage);
 
         failoverManager.logSuccess();
     } catch (err) {
@@ -43,13 +51,13 @@ export async function createValuation(valuationRepository: Repository<VehicleVal
         }         
     }
 
-    await valuationRepository.insert(valuation).catch((err) => {
+    await createValuationDeps.valuationRepository.insert(valuation).catch((err) => {
         if (err.code !== 'SQLITE_CONSTRAINT') {
         throw err;
         }
     });
 
-    logger.info('Valuation created: ', valuation);
+    createValuationDeps.logger.info('Valuation created: ', valuation);
 
     return valuation;
 }

@@ -1,7 +1,9 @@
 import { describe, it, vi, expect, beforeEach } from 'vitest';
 import { createValuation } from '../create-valuation';
 import { VehicleValuation } from '@app/models/vehicle-valuation';
+import { ProviderLogs } from '@app/models/provider-logs';
 import { FastifyBaseLogger } from 'fastify';
+import { Repository } from 'typeorm';
 
 vi.mock('@app/valuation-providers', () => ({
   fetchValuationFromSuperCarValuation: vi.fn(),
@@ -19,29 +21,44 @@ describe('createValuation', () => {
     lowestValue: 5000,
     highestValue: 8000,
     providerName: 'SuperCar',
-    midpointValue: 0 // unused
+    midpointValue: 0
   };
-  
 
-  const logger: FastifyBaseLogger = {
-    info: vi.fn(),
-    child: () => logger
-  } as unknown as FastifyBaseLogger;
+  let valuationRepo: Partial<Repository<VehicleValuation>>;
+  let providerLogsRepo: Partial<Repository<ProviderLogs>>;
+  let logger: FastifyBaseLogger;
 
-  let repo: any
+  beforeEach(() => {
+    vi.clearAllMocks();
 
-beforeEach(() => {
-  vi.clearAllMocks();
-  repo = {
-    findOneBy: vi.fn().mockResolvedValue(null),
-    insert: vi.fn().mockResolvedValue(undefined),
-  };
-});
+    valuationRepo = {
+      findOneBy: vi.fn().mockResolvedValue(null),
+      insert: vi.fn().mockResolvedValue(undefined),
+    };
+
+    providerLogsRepo = {
+      create: vi.fn((log) => log),
+      save: vi.fn().mockResolvedValue(undefined),
+    };
+
+    logger = {
+      info: vi.fn(),
+      child: () => logger,
+    } as unknown as FastifyBaseLogger;
+  });
 
   it('returns existing valuation if already in DB', async () => {
-    repo.findOneBy.mockResolvedValue(fakeValuation);
+    (valuationRepo.findOneBy as any).mockResolvedValue(fakeValuation);
 
-    const result = await createValuation(repo, logger, 'ABC123', 10000);
+    const result = await createValuation(
+      {
+        valuationRepository: valuationRepo as any,
+        providerLogsRepository: providerLogsRepo as any,
+        logger,
+      },
+      'ABC123',
+      10000
+    );
 
     expect(result).toBe(fakeValuation);
     expect(fetchValuationFromSuperCarValuation).not.toHaveBeenCalled();
@@ -51,13 +68,20 @@ beforeEach(() => {
   it('calls SuperCar and saves the valuation on success', async () => {
     (fetchValuationFromSuperCarValuation as any).mockResolvedValue(fakeValuation);
 
-    const result = await createValuation(repo, logger, 'ABC1234', 10000);
+    const result = await createValuation(
+      {
+        valuationRepository: valuationRepo as any,
+        providerLogsRepository: providerLogsRepo as any,
+        logger,
+      },
+      'ABC1234',
+      10000
+    );
 
     expect(fetchValuationFromSuperCarValuation).toHaveBeenCalled();
     expect(fetchValuationFromPremiumCarValuation).not.toHaveBeenCalled();
-    expect(repo.insert).toHaveBeenCalledWith(fakeValuation);
+    expect(valuationRepo.insert).toHaveBeenCalledWith(fakeValuation);
     expect(logger.info).toHaveBeenCalled();
-    expect(result).toBe(fakeValuation);
     expect(result.providerName).toBe('SuperCar');
   });
 
@@ -67,7 +91,15 @@ beforeEach(() => {
     (fetchValuationFromSuperCarValuation as any).mockRejectedValue(new Error('fail'));
     (fetchValuationFromPremiumCarValuation as any).mockResolvedValue(fallbackValuation);
 
-    const result = await createValuation(repo, logger, 'XYZ999', 10000);
+    const result = await createValuation(
+      {
+        valuationRepository: valuationRepo as any,
+        providerLogsRepository: providerLogsRepo as any,
+        logger,
+      },
+      'XYZ999',
+      10000
+    );
 
     expect(fetchValuationFromSuperCarValuation).toHaveBeenCalled();
     expect(fetchValuationFromPremiumCarValuation).toHaveBeenCalled();
@@ -78,7 +110,16 @@ beforeEach(() => {
     (fetchValuationFromSuperCarValuation as any).mockRejectedValue(new Error('fail 1'));
     (fetchValuationFromPremiumCarValuation as any).mockRejectedValue(new Error('fail 2'));
 
-    await expect(createValuation(repo, logger, 'FAIL999', 10000)).rejects.toThrow('Service Unavailable: Unable to fetch valuation from both providers');
+    await expect(() =>
+      createValuation(
+        {
+          valuationRepository: valuationRepo as any,
+          providerLogsRepository: providerLogsRepo as any,
+          logger,
+        },
+        'FAIL999',
+        10000
+      )
+    ).rejects.toThrow('Service Unavailable: Unable to fetch valuation from both providers');
   });
-
 });

@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { VehicleValuationRequest } from './types/vehicle-valuation-request';
 import { VehicleValuation } from '@app/models/vehicle-valuation';
+import { ProviderLogs } from '@app/models/provider-logs';
 import { createValuation } from '@app/services/create-valuation';
 
 export function valuationRoutes(fastify: FastifyInstance) {
@@ -39,6 +40,7 @@ export function valuationRoutes(fastify: FastifyInstance) {
     };
   }>('/valuations/:vrm', async (request, reply) => {
     const valuationRepository = fastify.orm.getRepository(VehicleValuation);
+    const providerLogsRepository = fastify.orm.getRepository(ProviderLogs);
     const { vrm } = request.params;
     const { mileage } = request.body;
 
@@ -58,7 +60,12 @@ export function valuationRoutes(fastify: FastifyInstance) {
     }
 
     try {
-      const valuation = await createValuation(valuationRepository, fastify.log, vrm, mileage);
+      const deps = {
+        valuationRepository,
+        providerLogsRepository,
+        logger: fastify.log,
+      };
+      const valuation = await createValuation(deps, vrm, mileage);
       return reply.code(200).send(valuation);
     } catch (err) {
       request.log.error(err);
