@@ -119,4 +119,10 @@ The URI for this test stub in Mocky is https://run.mocky.io/v3/0dfda26a-3a5a-43e
 
 
 # Candidate Notes
-Here is a place for you to put any notes regarding the changes you made and the reasoning and what further changes you wish to suggest.
+It was a pleasure working on this project, it was fun, engaging, and presented a serious brainstorming challenge. I aimed to focus on areas that would best showcase the skills you’re looking for, and I tried to  built something elegant and practical in the process.
+
+I introduced a basic failover mechanism designed to run in a single-node environment. The logic behind it is documented in the code, along with the scenarios that guided my design decisions.
+
+Regarding multi-node clusters: in a production setting, a shared state would be necessary to coordinate failover across nodes. However, given the context of this exercise, the ProviderLogs model introduced in the final feature requirement already captures the key data points, including request time, response code, and provider name, that could be used to build a distributed failover strategy without introducing new stateful components.
+
+With some additional query logic and coordination mechanisms (e.g., for resetting failover state after period of time), ProviderLogs could effectively power a robust failover approach across multiple nodes using existing data.
